@@ -1,6 +1,6 @@
 [package]
 name = "gridvid"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["U-03BB"]
 readme = "README.md"
 repository = "https://github.com/u-03bb/gridvid"

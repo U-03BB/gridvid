@@ -29,6 +29,7 @@ The outer vector translates to the X-axis and the inner vectors translate to the
 
 This sample code renders and exports the following:
 
+[Output](https://user-images.githubusercontent.com/65624699/224349598-32c3c34c-fde2-4194-a398-fe7cde6b3335.mp4)
 <video controls style="display: block; max-width: 360px" src="https://user-images.githubusercontent.com/65624699/224349598-32c3c34c-fde2-4194-a398-fe7cde6b3335.mp4"></video>
 
 ## Additional Options
@@ -55,8 +56,7 @@ https://docs.rs/gridvid/
 
 ## Gallery
 
-`examples/game_of_life.rs`
-
+[Sample output from `examples/game_of_life.rs`](https://user-images.githubusercontent.com/65624699/224367600-e5718cec-0a77-4313-98ad-6043abbc9b94.mp4)
 <video controls style="display: block; max-width: 360px" src="https://user-images.githubusercontent.com/65624699/224367600-e5718cec-0a77-4313-98ad-6043abbc9b94.mp4"></video>
 
 ## License
