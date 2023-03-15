@@ -1,15 +1,9 @@
 use crate::Error;
 use openh264::encoder::{Encoder as OpenH264Encoder, EncoderConfig};
-use std::path::{Path, PathBuf};
-use std::{
-    fs,
-    io::{Cursor, Read, Seek},
-};
+use std::{fs, io, path::{Path, PathBuf}};
 
 mod image;
-
-mod minimp4;
-use self::minimp4::Mp4Muxer;
+mod muxer;
 
 const DEFAULT_FPS: u16 = 4;
 const DEFAULT_SCALE_MAX_SIZE: u16 = 720;
@@ -84,8 +78,8 @@ impl<T> EncoderBuilder<T> {
     /// Returns a configured video [Encoder].
     pub fn build(self) -> Result<Encoder<T>> {
         if Path::try_exists(&self.filepath)? {
-            return Err(Error::IoError(std::io::Error::new(
-                std::io::ErrorKind::AlreadyExists,
+            return Err(Error::IoError(io::Error::new(
+                io::ErrorKind::AlreadyExists,
                 format!("output file already exists: {}", &self.filepath.display()),
             )));
         }
@@ -231,25 +225,10 @@ impl<T> Encoder<T> {
             return Err(Error::NoFrames);
         };
 
-        let mut video_buffer = Cursor::new(Vec::new());
-        let mut mp4muxer = Mp4Muxer::new(&mut video_buffer);
-        mp4muxer.init_video(
-            self.width.unwrap() as i32,
-            self.height.unwrap() as i32,
-            false,
-            &self.filepath.file_stem().unwrap().to_string_lossy(),
-        );
-        mp4muxer.write_video_with_fps(&self.buffer, self.fps);
-        mp4muxer.close();
+        muxer::mux(&self);
 
-        // Get raw bytes for the video
-        video_buffer.rewind()?;
-        let mut video_bytes = Vec::new();
-        video_buffer.read_to_end(&mut video_bytes)?;
-
-        std::fs::write(&self.filepath, &video_bytes)?;
-        log::debug!("video output file closed: {}", &self.filepath.display());
-        Ok(video_bytes.len())
+        log::debug!("video output written: {}", &self.filepath.display());
+        Ok(0) // TODO: Get size of file?
     }
 
     /// Returns the current number of frames
