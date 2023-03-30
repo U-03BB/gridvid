@@ -61,4 +61,4 @@ https://docs.rs/gridvid/
 
 ## License
 
-Currently licensed under AGPL-3.0, but looking into options that would allow for a more permissive license.
+Licensed under the MIT license as of version 0.2.0.
