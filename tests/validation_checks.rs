@@ -1,7 +1,7 @@
 mod common;
 use common::*;
 
-use gridvid::{Error, Encoder, Result};
+use gridvid::{Encoder, Error, Result};
 
 #[test]
 fn file_overwrite_prevention() -> Result<()> {

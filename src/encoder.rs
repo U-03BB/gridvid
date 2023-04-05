@@ -1,6 +1,9 @@
 use crate::Error;
 use openh264::encoder::{Encoder as OpenH264Encoder, EncoderConfig};
-use std::{fs, io, path::{Path, PathBuf}};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 mod image;
 mod muxer;

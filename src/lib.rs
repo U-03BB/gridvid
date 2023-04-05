@@ -33,7 +33,7 @@
 //! # }
 //! ```
 //! This sample code renders and exports the following:
-//! 
+//!
 //! <video controls style="display: block; max-width: 360px" src="https://user-images.githubusercontent.com/65624699/224349598-32c3c34c-fde2-4194-a398-fe7cde6b3335.mp4"></video>
 //!
 //! ## Additional Options
