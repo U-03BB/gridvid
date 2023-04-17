@@ -223,7 +223,7 @@ impl<T> Encoder<T> {
     }
 
     /// Writes encoded video to output file. Returns number of bytes written.
-    pub fn close(self) -> Result<usize> {
+    pub fn close(self) -> Result<()> {
         if *self.frame_count() == 0 {
             return Err(Error::NoFrames);
         };
@@ -231,7 +231,7 @@ impl<T> Encoder<T> {
         muxer::mux(&self);
 
         log::debug!("video output written: {}", &self.filepath.display());
-        Ok(0) // TODO: Get size of file?
+        Ok(())
     }
 
     /// Returns the current number of frames
