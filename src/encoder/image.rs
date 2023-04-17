@@ -5,7 +5,8 @@ use crate::{Gridlines, Rgb};
 // Wrapped into a single function to avoid unnecessary 2D Vec allocations
 pub(crate) fn format<T, F>(
     grid: &[Vec<T>],
-    scale: u16,
+    scale_width: usize,
+    scale_height: usize,
     convert: F,
     gridlines: &Gridlines,
 ) -> Vec<u8>
@@ -24,8 +25,8 @@ where
             (0, 0)
         };
 
-    let frame_width = grid_width * scale as usize + grid_padding_width;
-    let frame_height = grid_height * scale as usize + grid_padding_height;
+    let frame_width = grid_width * scale_width + grid_padding_width;
+    let frame_height = grid_height * scale_height + grid_padding_height;
 
     let mut output: Vec<u8> = Vec::with_capacity(frame_width * frame_height * 3);
     (0..grid_height)
@@ -33,7 +34,7 @@ where
         .for_each(|y| {
             let row_step_iter = (0..grid_width).flat_map(|x| -> Vec<Rgb> {
                 let rgb_value: Rgb = convert(&grid[x][y]);
-                let cell_width: Vec<Rgb> = vec![rgb_value; scale as usize];
+                let cell_width: Vec<Rgb> = vec![rgb_value; scale_width];
                 if let Gridlines::Show(color) = gridlines {
                     if x != grid_width - 1 {
                         let grid_divider = color;
@@ -44,7 +45,7 @@ where
                 cell_width
             });
 
-            for _ in 0..scale {
+            for _ in 0..scale_height {
                 for rgb in row_step_iter.clone() {
                     output.push(rgb.0);
                     output.push(rgb.1);

@@ -1,7 +1,7 @@
 mod common;
 use common::*;
 
-use gridvid::{Encoder, Error, Result};
+use gridvid::{Encoder, Error, Gridlines, Result, Scaling};
 
 #[test]
 fn file_overwrite_prevention() -> Result<()> {
@@ -33,9 +33,9 @@ fn max_frame_size() -> Result<()> {
     let grid = vec![vec![GridItem::Off; 3072]; 3072];
     let filename = TempPath::new(&"at_max_size.mp4");
     let mut video = Encoder::new(&filename, Box::new(griditem_to_rgb))
-        .scale(1)
+        .scale(Scaling::Uniform(1))
         .fps(2)
-        .gridlines(gridvid::Gridlines::Hide)
+        .gridlines(Gridlines::Hide)
         .build()?;
     video.add_frame(&grid)?;
 
@@ -43,9 +43,9 @@ fn max_frame_size() -> Result<()> {
     let grid = vec![vec![GridItem::Off; 3072]; 3073];
     let filename = TempPath::new(&"above_max_size.mp4");
     let mut video = Encoder::new(&filename, Box::new(griditem_to_rgb))
-        .scale(1)
+        .scale(Scaling::Uniform(1))
         .fps(2)
-        .gridlines(gridvid::Gridlines::Hide)
+        .gridlines(Gridlines::Hide)
         .build()?;
     let res = video.add_frame(&grid);
     if let Err(Error::OversizedFrame(_)) = res {

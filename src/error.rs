@@ -2,7 +2,7 @@
 pub const OPENH264_MAX_SIZE: usize = 9437184;
 
 #[derive(Debug, thiserror::Error)]
-/// The error type for gridvid operations.
+/// The error type for Gridvid operations.
 ///
 /// Several variants represent common encoding errors that can be caught early in the pipeline.
 pub enum Error {
@@ -20,11 +20,12 @@ pub enum Error {
         OPENH264_MAX_SIZE
     )]
     OversizedFrame((usize, usize)),
-    /// Frame dimensions are invalid, meaning either frame width×height == 0 or frame width×height % 2 == 1.
+    /// Frame dimensions are invalid.
+    /// Open264 frame requires frame width and height to both be above 0 and a multiple of 2.
     ///
-    /// Wraps: `(scale, (frame_width, frame_height))`
-    #[error("openh264 requires frame width and height to be >0 and multiples of 2. scale={0} (w, h)={1:?}")]
-    InvalidFrameDimensions(u16, (usize, usize)),
+    /// Wraps: `(frame_width, frame_height)`
+    #[error("openh264 requires frame width and height to both be above 0 and a multiple of 2. (w, h)={0:?}")]
+    InvalidFrameDimensions((usize, usize)),
     /// Video has zero frames.
     #[error("video has zero frames")]
     NoFrames,

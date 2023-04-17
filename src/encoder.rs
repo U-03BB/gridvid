@@ -13,23 +13,52 @@ const DEFAULT_SCALE_MAX_SIZE: u16 = 720;
 
 /// A tuple containing Red, Green and Blue color intensities.
 pub type Rgb = (u8, u8, u8);
-/// A specialized gridvid Result type.
+/// A specialized Gridvid Result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// A function to map grid element type to [Rgb].
 pub type Converter<T> = dyn Fn(&T) -> Rgb;
 
+/// Options for upscaling the video.
+///
+/// Default for new [Encoders](Encoder): `MaxSize(720, 720)`.
+///
+/// #### Note
+/// Gridvid does not currently do any resampling or image interpolation.
+/// If the grid dimensions do not evenly divide the target resolution,
+/// Gridvid will scale to the nearest resolution that does.
+///
+/// For example, using `MaxSize(720, 720)` with a 50x50 grid will result in a 700x700 video resolution.
+#[derive(Clone, Copy, PartialEq)]
+pub enum Scaling {
+    /// Upscales the video by a constant factor. Gridlines are added after scaling.
+    ///
+    /// e.g. `Uniform(8)` will make each grid element an 8x8 square.
+    Uniform(u16),
+    /// Scales the video to fit within an width x height frame, keeping the original aspect ratio.
+    ///
+    /// e.g. `MaxSize(1920, 1080)` will ensure the video will not be larger than 1920x1080.
+    MaxSize(u16, u16),
+    /// Stretches the video to fit within the specified width and height, ignoring the original aspect ratio.
+    ///
+    /// e.g. `Stretch(512, 512)` will stretch the video as closely as possible to a 512x512 square.
+    Stretch(u16, u16),
+}
+
 /// A video encoder wrapper. Converts grid to encoded video frames and writes output to a file.
 ///
-/// Defaults:
-/// - Video frame rate is 4 fps
-/// - Black [Gridlines] are inserted in between elements
-/// - Video is scaled to fit in a 720 pixel square
+/// ##### Defaults
+/// - Video frame rate is 4 [fps].
+/// - Black gridlines are inserted in between elements: [`Gridlines(0,0,0)`](Gridlines)
+/// - Video is scaled to 720x720 pixels: [`MaxSize(720, 720)`](Scaling)
+///
+/// [fps]: EncoderBuilder::fps
+
 pub struct Encoder<T> {
     filepath: PathBuf,
     width: Option<usize>,
     height: Option<usize>,
-    scale: Option<u16>,
+    scale: Scaling,
     encoder: Option<OpenH264Encoder>,
     buffer: Vec<u8>,
     fps: u32,
@@ -38,9 +67,9 @@ pub struct Encoder<T> {
     converter: Box<Converter<T>>,
 }
 
-/// Options for showing or hiding gridlines.
+/// Options for showing or hiding gridlines. Gridlines are 2 pixels in width for all scaling options.
 pub enum Gridlines {
-    /// Insert gridlines with the wrapped `(u8, u8, u8)` color in between elements.
+    /// Insert gridlines with the wrapped `(u8, u8, u8)` color in between elements for visual separation.
     Show(Rgb),
     /// Hide gridlines.
     Hide,
@@ -50,17 +79,17 @@ pub enum Gridlines {
 pub struct EncoderBuilder<T> {
     filepath: PathBuf,
     converter: Box<Converter<T>>,
-    scale: Option<u16>,
+    scale: Scaling,
     fps: Option<u16>,
     gridlines: Option<Gridlines>,
 }
 
 impl<T> EncoderBuilder<T> {
-    /// Scales the video. The size of every element in the grid is multiplied by `scale` so each element appears as an `scale×scale` pixel square.
+    /// Sets the video [Scaling] option.
     ///
-    /// If unset, video is scaled to fit in a 720 pixel square
-    pub fn scale(mut self, scale: u16) -> Self {
-        self.scale = if scale > 0 { Some(scale) } else { None };
+    /// Default: `Scaling::MaxSize(720, 720)`
+    pub fn scale(mut self, scale: Scaling) -> Self {
+        self.scale = scale;
         self
     }
     /// Sets video frame rate.
@@ -125,7 +154,7 @@ impl<T> Encoder<T> {
             filepath,
             converter,
             fps: None,
-            scale: None,
+            scale: Scaling::MaxSize(DEFAULT_SCALE_MAX_SIZE, DEFAULT_SCALE_MAX_SIZE),
             gridlines: None,
         }
     }
@@ -137,10 +166,7 @@ impl<T> Encoder<T> {
 
         // Grid shape sanity checks
         if grid_width == 0 || grid_height == 0 {
-            return Err(Error::InvalidFrameDimensions(
-                self.scale.unwrap_or(0),
-                (grid_width, grid_height),
-            ));
+            return Err(Error::InvalidFrameDimensions((grid_width, grid_height)));
         }
         if grid.iter().skip(1).any(|y| y.len() != grid_height) {
             return Err(Error::InconsistentGridHeight(self.frame_count));
@@ -155,31 +181,36 @@ impl<T> Encoder<T> {
                 (0, 0)
             };
 
+        let (scale_width, scale_height) = match self.scale {
+            Scaling::Uniform(scale) => (scale, scale),
+            Scaling::MaxSize(width, height) => {
+                let width_scale = (width - grid_padding_width as u16) / grid_width as u16;
+                let height_scale = (height - grid_padding_height as u16) / grid_height as u16;
+
+                let adjusted_scale = width_scale.min(height_scale);
+                self.scale = Scaling::Uniform(adjusted_scale);
+                (adjusted_scale, adjusted_scale)
+            }
+            Scaling::Stretch(width, height) => {
+                let width_scale = (width - grid_padding_width as u16) / grid_width as u16;
+                let height_scale = (height - grid_padding_height as u16) / grid_height as u16;
+
+                (width_scale, height_scale)
+            }
+        };
+
         if self.encoder.is_none() {
-            // then this is the first frame
+            // ... then this is the first frame
 
-            if self.scale.is_none() {
-                // Limit final image size to DEFAULT_SCALE_MAX_SIZE
-                self.scale = if grid_width >= grid_height {
-                    Some((DEFAULT_SCALE_MAX_SIZE - grid_padding_width as u16) / grid_width as u16)
-                } else {
-                    Some((DEFAULT_SCALE_MAX_SIZE - grid_padding_height as u16) / grid_height as u16)
-                };
-            };
-            let scale = self.scale.unwrap();
-
-            let video_width = grid_width * scale as usize + grid_padding_width;
-            let video_height = grid_height * scale as usize + grid_padding_height;
+            let video_width = grid_width * scale_width as usize + grid_padding_width;
+            let video_height = grid_height * scale_height as usize + grid_padding_height;
 
             // Validate OpenH264 frame requirements
             if video_width * video_height > crate::error::OPENH264_MAX_SIZE {
                 return Err(Error::OversizedFrame((video_width, video_height)));
             };
-            if scale % 2 == 1 && (video_width % 2 == 1 || video_height == 1) {
-                return Err(Error::InvalidFrameDimensions(
-                    scale,
-                    (grid_width, grid_height),
-                ));
+            if video_width * video_height == 0 || (video_width * video_height) % 2 == 1 {
+                return Err(Error::InvalidFrameDimensions((video_width, video_height)));
             }
 
             let config = EncoderConfig::new(video_width as u32, video_height as u32);
@@ -191,10 +222,9 @@ impl<T> Encoder<T> {
 
         let video_width = self.width.unwrap();
         let video_height = self.height.unwrap();
-        let scale = self.scale.unwrap();
 
-        let frame_width = grid_width * scale as usize + grid_padding_width;
-        let frame_height = grid_height * scale as usize + grid_padding_height;
+        let frame_width = grid_width * scale_width as usize + grid_padding_width;
+        let frame_height = grid_height * scale_height as usize + grid_padding_height;
 
         if frame_width != video_width || frame_height != video_height {
             return Err(Error::FrameSizeMismatch(
@@ -204,7 +234,13 @@ impl<T> Encoder<T> {
             ));
         }
 
-        let rgb_stream: Vec<u8> = image::format(grid, scale, &self.converter, &self.gridlines);
+        let rgb_stream: Vec<u8> = image::format(
+            grid,
+            scale_width as usize,
+            scale_height as usize,
+            &self.converter,
+            &self.gridlines,
+        );
         let yuv = openh264::formats::YUVBuffer::with_rgb(video_width, video_height, &rgb_stream);
 
         // Encode YUV into H.264.
