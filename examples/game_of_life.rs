@@ -1,4 +1,6 @@
 use gridvid::Encoder;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const STEPS: usize = 50;
@@ -48,11 +50,16 @@ impl Grid {
         let content: Vec<Vec<Cell>> = (0..u16::BITS)
             .map(|_| {
                 // Poor man's PRNG. Avoids adding an extra dependency just for the example
-                let rand_num = SystemTime::now()
+                let partial_time_ns = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
-                    .subsec_nanos() as u16;
-                let bit_array_iter = (0..u16::BITS).map(|i| rand_num >> i & 1 == 1);
+                    .subsec_nanos();
+
+                let mut hasher = DefaultHasher::new();
+                partial_time_ns.hash(&mut hasher);
+                let hash = hasher.finish() as u16;
+
+                let bit_array_iter = (0..u16::BITS).map(|i| hash >> i & 1 == 1);
                 bit_array_iter
                     .map(|b: bool| if b { Cell::Alive } else { Cell::Dead })
                     .collect::<Vec<Cell>>()
