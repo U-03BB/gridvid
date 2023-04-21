@@ -184,16 +184,20 @@ impl<T> Encoder<T> {
         let (scale_width, scale_height) = match self.scale {
             Scaling::Uniform(scale) => (scale, scale),
             Scaling::MaxSize(width, height) => {
-                let width_scale = (width - grid_padding_width as u16) / grid_width as u16;
-                let height_scale = (height - grid_padding_height as u16) / grid_height as u16;
+                let width_scale =
+                    (width.saturating_sub(grid_padding_width as u16)) / grid_width as u16;
+                let height_scale =
+                    (height.saturating_sub(grid_padding_height as u16)) / grid_height as u16;
 
                 let adjusted_scale = width_scale.min(height_scale);
                 self.scale = Scaling::Uniform(adjusted_scale);
                 (adjusted_scale, adjusted_scale)
             }
             Scaling::Stretch(width, height) => {
-                let width_scale = (width - grid_padding_width as u16) / grid_width as u16;
-                let height_scale = (height - grid_padding_height as u16) / grid_height as u16;
+                let width_scale =
+                    (width.saturating_sub(grid_padding_width as u16)) / grid_width as u16;
+                let height_scale =
+                    (height.saturating_sub(grid_padding_height as u16)) / grid_height as u16;
 
                 (width_scale, height_scale)
             }
