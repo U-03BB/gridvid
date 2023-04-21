@@ -25,6 +25,7 @@ fn file_overwrite_prevention() -> Result<()> {
 }
 
 #[test]
+// Ignored by default because it takes disproportionately long
 #[ignore]
 fn max_frame_size() -> Result<()> {
     env_logger_init();
@@ -48,14 +49,12 @@ fn max_frame_size() -> Result<()> {
         .gridlines(Gridlines::Hide)
         .build()?;
     let res = video.add_frame(&grid);
-    if let Err(Error::OversizedFrame(_)) = res {
-        return Ok(());
-    }
 
-    if res.is_ok() {
-        return Err(Error::Openh264Error(openh264::Error::msg(
+    match res {
+        Ok(_) => Err(Error::Openh264Error(openh264::Error::msg(
             "oversized frame passed constraints",
-        )));
+        ))),
+        Err(Error::OversizedFrame(_)) => Ok(()),
+        Err(e) => Err(e),
     }
-    res.map(|_| ())
 }
